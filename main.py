@@ -1,34 +1,51 @@
+import wallpaper
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 import os
+from urllib import request as urlreq
+from urllib.parse import urljoin
 import requests
 
-
 WIKIPEDIA_URL = "https://en.wikipedia.org/"
-WIKIPEDIA_MAIN_PAGE_URL = "wiki/Main_Page"
 
-response = requests.get(urljoin(WIKIPEDIA_URL, WIKIPEDIA_MAIN_PAGE_URL))
+wikipedia_main_page = requests.get(WIKIPEDIA_URL)
 
-soup = BeautifulSoup(response.text, "lxml")
-mp_lower_div = soup.find("div", {"id": "mp-lower"})
-original_photo_page_url = "https://en.wikipedia.org/" + mp_lower_div.a.attrs["href"]
+wikipedia_main_page_doc = BeautifulSoup(wikipedia_main_page.text, "lxml")
+mp_lower_div = wikipedia_main_page_doc.find("div", {"id": "mp-lower"})
+original_photo_page_url = urljoin(WIKIPEDIA_URL, mp_lower_div.a.attrs["href"])
 original_photo_doc = requests.get(original_photo_page_url)
-soup = BeautifulSoup(original_photo_doc.text, "lxml")
+original_photo_page_doc = BeautifulSoup(original_photo_doc.text, "lxml")
 photo_link = ""
-for i in soup.findAll("a"):
+for i in original_photo_page_doc.findAll("a"):
     if i.text == "Original file":
         photo_link = "https:" + i.attrs["href"]
         print(i.attrs["href"])
         print(photo_link)
         break
-photo = requests.get(photo_link)
-file_format = photo_link.split(".")[-1]
-if os.path.exists("photo"):
-    os.chdir("photo")
+
+if not os.path.exists("POTD"):
+    os.mkdir("POTD")
+if not os.path.exists("archive"):
+    os.mkdir("archive")
+
+os.chdir("POTD")
+
+file_name = photo_link.split("/")[-1]
+if file_name in os.listdir():
+    if len(os.listdir()) > 1:
+        for i in os.listdir():
+            if i == file_name:
+                continue
+            else:
+                os.replace(i, "../archive/" + i)
+
+    print("You already got this picture")
+elif not os.listdir():
+    urlreq.urlretrieve(photo_link, file_name)
 else:
-    os.mkdir("photo")
-    os.chdir("photo")
-# requests module couldn't get data from the link(403 error)
-os.system("wget " + photo_link)
-name = os.listdir()[0]
-os.system("gsettings set  org.gnome.desktop.background picture-uri-dark " + "\"file://" + os.getcwd() + "/" + name + "\"")
+    for i in os.listdir():
+        os.replace(i, "../archive/" + i)
+
+    urlreq.urlretrieve(photo_link, file_name)
+
+wallpaper.set(file_name)
+
